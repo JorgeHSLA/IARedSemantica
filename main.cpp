@@ -14,6 +14,12 @@
 #include <sstream>
 #include "graph.h"
 
+std::string trim(const std::string& str) {
+    size_t start = str.find_first_not_of(" \t\n\r");
+    size_t end = str.find_last_not_of(" \t\n\r");
+    return (start == std::string::npos) ? "" : str.substr(start, end - start + 1);
+}
+
 std::vector<std::string> split(const std::string& str, char delimiter) {
     std::vector<std::string> tokens;
     std::string token;
@@ -32,65 +38,6 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
               
 enum class FunctionType { ES, INSTANCE, ATRIBUTTE };
 
-static inline std::string trim(std::string s) {
-    size_t i = 0, j = s.size();
-    while (i < j && std::isspace(static_cast<unsigned char>(s[i]))) ++i;
-    while (j > i && std::isspace(static_cast<unsigned char>(s[j-1]))) --j;
-    return s.substr(i, j - i);
-}
-
-std::vector<std::string> splitArgsRespectingNesting(const std::string& args) {
-    std::vector<std::string> out;
-    std::string cur;
-    int paren = 0; // ()
-    int angle = 0; // <>
-    bool inStr = false;
-    char q = 0;
-
-    for (size_t i = 0; i < args.size(); ++i) {
-        char c = args[i];
-
-        if (inStr) {
-            cur.push_back(c);
-            if (c == q && (i == 0 || args[i-1] != '\\')) inStr = false;
-            continue;
-        } else if (c == '"' || c == '\'') {
-            inStr = true; q = c; cur.push_back(c);
-            continue;
-        }
-
-        if (c == '(') ++paren;
-        else if (c == ')' && paren > 0) --paren;
-        else if (c == '<') ++angle;
-        else if (c == '>' && angle > 0) --angle;
-
-        if (c == ',' && paren == 0 && angle == 0) {
-            out.push_back(trim(cur));
-            cur.clear();
-        } else {
-            cur.push_back(c);
-        }
-    }
-    if (!trim(cur).empty()) out.push_back(trim(cur));
-    if (out.size() == 1 && out[0].empty()) out.clear();
-    return out;
-}
-
-std::vector<std::string> parseSignature(const std::string& s) {
-    static const std::regex re(R"(^\s*([A-Za-z_]\w*)\s*\(\s*(.*?)\s*\)\s*$)");
-    std::smatch m;
-    if (!std::regex_match(s, m, re)) return {}; 
-
-    std::string name = m[1].str();
-    std::string args = m[2].str();
-
-    std::vector<std::string> result;
-    result.push_back(name);
-
-    auto parts = splitArgsRespectingNesting(args);
-    result.insert(result.end(), parts.begin(), parts.end());
-    return result;
-}
 
 int main () {
 
@@ -108,7 +55,7 @@ int main () {
         std::cerr << "No se pudo abrir el archivo: " << filename << std::endl;
         return 1;
     }
-    
+
     while (getline(archivo, linea)) {
         if (linea.empty()) continue;
 
@@ -121,7 +68,38 @@ int main () {
         std::string argumento = linea.substr(pos + 1, linea.size() - pos - 2); 
         std::vector<std::string>  argumentos = split(argumento, ',');
 
+        std::vector<std::string> funcion;
+        funcion.push_back(nombreFuncion);
+        for (const auto& arg : argumentos) funcion.push_back(arg);
+
+        funciones.push_back(funcion);
     }
+
+    archivo.close();
+
+    std::vector<std::vector<std::string>>::iterator it;
+
+    for (it = funciones.begin(); it != funciones.end(); ++it) {
+
+        if((*it)[0] == "es_un"){
+            red.insertVertex((*it)[1]);
+            red.insertVertex((*it)[2]);
+            red.insertEdge((*it)[1], (*it)[0], (*it)[2]);
+        } else if ((*it)[0] == "atributo"){
+            red.insertVertex((*it)[1]);
+            red.insertVertex((*it)[3]);
+            red.insertEdge((*it)[1], (*it)[2], (*it)[3]);
+        } else if ((*it)[0] == "instancia"){
+            red.insertVertex((*it)[1]);
+            red.insertVertex((*it)[2]);
+            red.insertEdge((*it)[1], (*it)[0], (*it)[2]);
+        } else {
+            std::cerr << "Función desconocida: " << (*it)[0] << std::endl;
+        }
+    }
+
+    // red.printElements();
+    // red.printGraph();
 
     //1. Leer er archivo de txt por línea y guardarlo en un arreglo dinámico (lista)
     //2. Dividir cada valor de la lista en una sublista, donde se guarda a través de un expresión regular

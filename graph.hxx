@@ -7,11 +7,13 @@
 #include <set>
 #include <vector>
 #include <climits>
+#include <stdexcept>   // std::logic_error
+#include <string>
 
 template <class T>
 graph<T>::graph() {
   numVertices = 0;
-  edges = nullptr;
+  edges = nullptr; // std::string** (ver getEdges)
 }
 
 template <class T>
@@ -32,14 +34,18 @@ void graph<T>::printGraph() {
   }
   std::cout << std::endl;
   typename std::list<T>::iterator it = this->vertices.begin();
+
   for (int i = 0; i < this->numVertices; ++i) {
     std::cout << *it << " ";
     it++;
     for (int j = 0; j < this->numVertices; ++j) {
-      std::cout << this->edges[i][j] << " ";
+      // Imprime "-" si no hay arista (cadena vacía)
+      std::cout << (this->edges[i][j].empty() ? std::string("-") : this->edges[i][j]) << " ";
     }
     std::cout << std::endl;
   }
+
+  
 }
 
 template <class T>
@@ -56,7 +62,7 @@ std::list<T> graph<T>::getVertices() {
 }
 
 template <class T>
-float** graph<T>::getEdges() {
+std::string** graph<T>::getEdges() {   // <- cambiado a std::string**
   return this->edges;
 }
 
@@ -70,7 +76,7 @@ int graph<T>::edgeCount() {
   int totalCount = 0;
   for (int i = 0; i < this->numVertices; ++i) {
     for (int j = 0; j < this->numVertices; ++j) {
-      if (this->edges[i][j] != 0) totalCount++;
+      if (!this->edges[i][j].empty()) totalCount++;
     }
   }
   return totalCount;
@@ -81,26 +87,26 @@ bool graph<T>::insertVertex(T vertex) {
   if (findVertex(vertex)) return false;
   this->vertices.push_back(vertex);
 
-  // Dynamic memory for the new matrix with size = vertices + 1
-  float** newEdges = new float*[numVertices + 1];
+  // Nueva matriz dinámica (numVertices + 1)
+  std::string** newEdges = new std::string*[numVertices + 1];
   for (int i = 0; i < numVertices + 1; ++i) {
-      newEdges[i] = new float[numVertices + 1];
+      newEdges[i] = new std::string[numVertices + 1];
   }
 
-  // Copy the existing data from the previous matrix into the new matrix
+  // Copia de datos previos
   for (int i = 0; i < numVertices; ++i) {
       for (int j = 0; j < numVertices; ++j) {
-          newEdges[i][j] = edges[i][j];
+          newEdges[i][j] = edges ? edges[i][j] : std::string();
       }
   }
 
-  // Initialize the new row and column with zeros 
+  // Inicializa nueva fila/columna con "" (sin arista)
   for (int i = 0; i < numVertices + 1; ++i) {
-      newEdges[numVertices][i] = 0;
-      newEdges[i][numVertices] = 0;
+      newEdges[numVertices][i] = "";
+      newEdges[i][numVertices] = "";
   }
 
-  // Delete the old matrix
+  // Libera matriz anterior
   if (edges != nullptr) {
       for (int i = 0; i < numVertices; ++i) {
           delete[] edges[i];
@@ -108,7 +114,7 @@ bool graph<T>::insertVertex(T vertex) {
       delete[] edges;
   }
 
-  // Copy new matrix into the original one
+  // Asigna nueva matriz
   this->edges = newEdges;
   this->numVertices++;
 
@@ -120,8 +126,8 @@ bool graph<T>::insertEdge(T origin, T destination) {
   int indexOrigin = findIndex(origin);
   int indexDestination = findIndex(destination);
   if (indexOrigin == -1 || indexDestination == -1) return false;
-  if (this->edges[indexOrigin][indexDestination] != 0) return false;
-  this->edges[indexOrigin][indexDestination] = 1;
+  if (!this->edges[indexOrigin][indexDestination].empty()) return false;
+  this->edges[indexOrigin][indexDestination] = "1"; // costo por defecto como "1"
   return true;
 }
 
@@ -130,8 +136,8 @@ bool graph<T>::insertEdge(T origin, std::string cost, T destination) {
   int indexOrigin = findIndex(origin);
   int indexDestination = findIndex(destination);
   if (indexOrigin == -1 || indexDestination == -1) return false;
-  if (this->edges[indexOrigin][indexDestination] != 0) return false;
-  this->edges[indexOrigin][indexDestination] = cost;
+  if (!this->edges[indexOrigin][indexDestination].empty()) return false;
+  this->edges[indexOrigin][indexDestination] = cost; // ahora string
   return true;
 }
 
@@ -160,7 +166,7 @@ bool graph<T>::findVertex(T vertex) {
 template <class T>
 T graph<T>::findVertex(int index) {
   int tempIndex;
-  T temp;
+  T temp{};
 
   typename std::list<T>::iterator it;
   for (it = this->vertices.begin(); it != this->vertices.end(); it++) {
@@ -175,7 +181,7 @@ bool graph<T>::findEdge(T origin, T destination) {
   int indexOrigin = findIndex(origin);
   int indexDestination = findIndex(destination);
   if (indexOrigin == -1 || indexDestination == -1) return false;
-  if (this->edges[indexOrigin][indexDestination] != 0) return true;
+  return !this->edges[indexOrigin][indexDestination].empty();
 }
 
 template <class T>
@@ -191,12 +197,15 @@ bool graph<T>::removeVertex(T vertex) {
     }
   }
 
+  // Desplazar columnas a la izquierda desde 'index'
   for (int i = 0; i < this->numVertices; ++i) {
     for (int j = index; j < this->numVertices - 1; ++j) {
       this->edges[i][j] = this->edges[i][j+1];
     }
-    edges[i][this->numVertices - 1] = 0;
+    edges[i][this->numVertices - 1] = "";
   }
+
+  // Desplazar filas hacia arriba desde 'index'
   for (int i = index; i < this->numVertices - 1; ++i) {
     for (int j = 0; j < this->numVertices; ++j) {
       this->edges[i][j] = this->edges[i+1][j];
@@ -204,10 +213,13 @@ bool graph<T>::removeVertex(T vertex) {
   }
 
   for (int i = 0; i < this->numVertices; ++i) {
-    edges[this->numVertices - 1][i] = 0;
+    edges[this->numVertices - 1][i] = "";
   }
 
-  float** newEdges = new float*[this->numVertices - 1];
+  std::string** newEdges = new std::string*[this->numVertices - 1];
+  for (int i = 0; i < this->numVertices - 1; ++i) {
+    newEdges[i] = new std::string[this->numVertices - 1];
+  }
 
   for (int i = 0; i < this->numVertices - 1; ++i) {
     for (int j = 0; j < this->numVertices - 1; ++j) {
@@ -231,9 +243,9 @@ bool graph<T>::removeEdge(T origin, T destination) {
   int indexOrigin = findIndex(origin);
   int indexDestination = findIndex(destination);
   if (indexOrigin == -1 || indexDestination == -1) return false;
-  if (this->edges[indexOrigin][indexDestination] == 0) return false;
+  if (this->edges[indexOrigin][indexDestination].empty()) return false;
 
-  this->edges[indexOrigin][indexDestination] = 0;
+  this->edges[indexOrigin][indexDestination] = "";
   return true;
 }
 
@@ -271,7 +283,7 @@ void graph<T>::depthTraversal(T vertex, std::map<T, bool> &visited) {
 
     typename std::list<T>::iterator it;
     for (it = this->vertices.begin(); it != this->vertices.end(); ++it) {
-      if (this->edges[findIndex(vertex)][findIndex(*it)] != 0 && !visited[*it]) {
+      if (!this->edges[findIndex(vertex)][findIndex(*it)].empty() && !visited[*it]) {
         depthTraversal(*it, visited);
       }
     }
@@ -296,7 +308,7 @@ void graph<T>::breadthTraversal(T vertex) {
     std::cout << currentVertex << " ";
 
     for (it = this->vertices.begin(); it != this->vertices.end(); ++it) {
-      if (this->edges[findIndex(currentVertex)][findIndex(*it)] != 0 && !visited[*it]) {
+      if (!this->edges[findIndex(currentVertex)][findIndex(*it)].empty() && !visited[*it]) {
         visited[*it] = true;
         queue.push(*it);
       }
@@ -310,7 +322,7 @@ template <class T>
 void graph<T>::Euler() {
     bool hasPath = false;
 
-    // Count degrees of each vertex
+    // Grados por vértice (cuenta aristas existentes, independientemente del "costo" string)
     std::map<T, int> degrees;
     for (T vertex : this->vertices) {
         degrees[vertex] = 0;
@@ -318,22 +330,22 @@ void graph<T>::Euler() {
 
     typename std::list<T>::iterator itI;
 
+    itI = this->vertices.begin();
     for (int i = 0; i < this->numVertices; ++i) {
-      itI = this->vertices.begin();
-      for (int j = 0; j < this->numVertices; ++j) {
-          if (this->edges[i][j] == 1) {
-              T tempVer = *itI;
-              degrees[tempVer]++;
+      T vi = *itI;
+      typename std::list<T>::iterator itJ = this->vertices.begin();
+      for (int j = 0; j < this->numVertices; ++j, ++itJ) {
+          if (!this->edges[i][j].empty()) {
+              degrees[vi]++; // cuenta salida
           }
       }
-      itI++;
+      ++itI;
     }
 
     int odd = 0;
     typename std::map<T, int>::iterator it;
     for (it = degrees.begin(); it != degrees.end(); ++it) {
-      if ((*it).second % 2 != 0) odd++;
-      T tempOdd = (*it).first;
+      if ((it->second) % 2 != 0) odd++;
     }
 
     if (odd == 0 || odd == 2)
@@ -346,51 +358,14 @@ void graph<T>::Euler() {
 
     std::cout << "The graph has an Eulerian path." << std::endl;
 
-    float **tempEdges = this->edges;
-    int numVerticesTemp = this->numVertices;
-
-    // CONTINUE IMPLEMENTATION
+    // Si necesitas continuar con una construcción del camino Euleriano, aquí
+    // deberías implementar el algoritmo de Hierholzer adaptado a matriz con strings.
+    // (Omitido por brevedad)
 }
 
 template <class T>
-std::vector<long> graph<T>::Dijkstra(T startVertex, T endVertex) {
-  std::vector<long> distance(this->numVertices, LONG_MAX);
-  std::vector<long> path(this->numVertices, -1);
-  std::set<std::pair<long, T>> queue;
-
-  int start = findIndex(startVertex);
-  int end = findIndex(endVertex);
-
-  if (start == -1 || end == -1) return path;
-
-  distance[start] = 0;
-  queue.insert(std::make_pair(0, startVertex));
-
-  while (!queue.empty()) {
-      T current = queue.begin()->second;
-      queue.erase(queue.begin());
-
-      int currentIndex = findIndex(current);
-
-      for (T neighbor : this->vertices) {
-          int neighborIndex = findIndex(neighbor);
-          if (this->edges[currentIndex][neighborIndex] != 0) {
-              float weight = this->edges[currentIndex][neighborIndex];
-              if (distance[neighborIndex] > distance[currentIndex] + weight) {
-                  queue.erase(std::make_pair(distance[neighborIndex], neighbor));
-                  distance[neighborIndex] = distance[currentIndex] + weight;
-                  path[neighborIndex] = currentIndex;
-                  queue.insert(std::make_pair(distance[neighborIndex], neighbor));
-              }
-          }
-      }
-  }
-
-  std::vector<long> route;
-  long i = end;
-  while (i != -1) {
-      route.push_back(i);
-      i = path[i];
-  }  
-  return route;
+std::vector<long> graph<T>::Dijkstra(T /*startVertex*/, T /*endVertex*/) {
+  // Dijkstra requiere pesos numéricos (sumables y comparables).
+  // Con costos tipo std::string no es aplicable directamente.
+  throw std::logic_error("Dijkstra is not supported with string edge costs. Map your string costs to numeric weights first.");
 }

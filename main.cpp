@@ -14,6 +14,7 @@
 #include <sstream>
 #include "graph.h"
 
+// Copilot define estas funciones porque al parecer no están definidas en la librería estándar ???
 std::string trim(const std::string& str) {
     size_t start = str.find_first_not_of(" \t\n\r");
     size_t end = str.find_last_not_of(" \t\n\r");
@@ -31,9 +32,7 @@ std::vector<std::string> split(const std::string& str, char delimiter) {
 }
 
 /*
-    Chat recomienda la creación y uso de estructuras 
-    auxiliares para la implementación del algoritmo Best-First
-    Y le pedí que las creara xd
+    Chat nos ayudó con la lectura del arhivo y partición del string de entrada
 */
               
 enum class FunctionType { ES, INSTANCE, ATRIBUTTE };

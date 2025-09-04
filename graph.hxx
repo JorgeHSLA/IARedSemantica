@@ -10,6 +10,9 @@
 #include <stdexcept>   // std::logic_error
 #include <string>
 
+// Chat nos ayudó a cambiar el tipo de datos de la matriz de adyacencia a std::string**
+// para permitir costos de aristas como cadenas (ej. "alto", "bajo", etc.)
+
 template <class T>
 graph<T>::graph() {
   numVertices = 0;
@@ -45,7 +48,7 @@ void graph<T>::printGraph() {
     std::cout << std::endl;
   }
 
-  
+
 }
 
 template <class T>

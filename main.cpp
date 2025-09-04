@@ -84,31 +84,31 @@ int main () {
             red.insertVertex((*it)[1]);
             red.insertVertex((*it)[2]);
             red.insertEdge((*it)[1], (*it)[0], (*it)[2]);
+
         } else if ((*it)[0] == "atributo"){
             red.insertVertex((*it)[1]);
             red.insertVertex((*it)[3]);
             red.insertEdge((*it)[1], (*it)[2], (*it)[3]);
+
         } else if ((*it)[0] == "instancia"){
             red.insertVertex((*it)[1]);
             red.insertVertex((*it)[2]);
             red.insertEdge((*it)[1], (*it)[0], (*it)[2]);
+            
         } else {
             std::cerr << "Función desconocida: " << (*it)[0] << std::endl;
         }
     }
 
 
-  int opcion=0;
-    std::cout<<"elije una de las opcions";
-    std::cout<<"1.Preguntar por el valor de un atributo de una clase o instancia particular: atributo X de Y? \n";
-    std::cout<<"2.Preguntar por todas las clases o instancias que tienen un atributo con un valor particular: clases o instancias con atributo X y valor Z? \n";
-    std::cin>>opcion;
-    if (opcion == 1)
-        preguntaUno()
-    else if(opcion == 2)
-        preguntaDos()
-    else
-        std::cout<<"pon un numero que sea el uno o el dos\n";
+    int opcion=0;
+    std::cout << "elije una de las opcions";
+    std::cout << "1.Preguntar por el valor de un atributo de una clase o instancia particular: atributo X de Y? \n";
+    std::cout << "2.Preguntar por todas las clases o instancias que tienen un atributo con un valor particular: clases o instancias con atributo X y valor Z? \n";
+    std::cin >> opcion;
+    if (opcion == 1) preguntaUno(red);
+    else if(opcion == 2) preguntaDos(red);
+    else std::cout << "pon un numero que sea el uno o el dos\n";
     
     
 
@@ -117,22 +117,22 @@ int main () {
 }
 
 
-void preguntaUno(){
+void preguntaUno(graph<std::string>& red){
 
-    std::String atributo = "X"
-    std::String instanciaClase = "Y"
-    std::cout<<"INGRESA EL ATRIBUTO (X) \n";
-    std::cin>>atributo;
-    std::cout<<"INGRESA LA CLASE O INSTANCIA (Y) \n";
-    std::cin>>instanciaClase;
+    std::string atributo = "X";
+    std::string instanciaClase = "Y";
+    std::cout << "INGRESA EL ATRIBUTO (X) \n";
+    std::cin >> atributo;
+    std::cout << "INGRESA LA CLASE O INSTANCIA (Y) \n";
+    std::cin >> instanciaClase;
 
-
+    atributoEnClaseOInstancia(red, instanciaClase ,atributo);
 } 
 
-void preguntaDos(){
+void preguntaDos(graph<std::string>& red){
 
-    std::String atributo = "X"
-    std::String instanciaClase = "Y"
+    std::string atributo = "X";
+    std::string instanciaClase = "Y";
     std::cout<<"INGRESA EL ATRIBUTO (X) \n";
     std::cin>>atributo;
     std::cout<<"INGRESA VALOR DE LA VARIABLE (Z) \n";
@@ -140,8 +140,29 @@ void preguntaDos(){
 
 }
 
-bool atributoEnClaseOInstancia(String x, String y){
-    find
+void atributoEnClaseOInstancia(graph<std::string>& red, std::string instanciaClase, std::string atributo){
+
+    typename std::list<std::string>::iterator it;
+    typename std::list<std::string>::iterator it_2;
+    int origin_index = red.findIndex(instanciaClase);
+
+    
+    if (origin_index < 0) {
+        std::cout << "La clase o instancia " << instanciaClase << " no existe en la red." << std::endl;
+        return;
+    }
+
+
+    for (it_2 = red.getVertices().begin(); it != red.getVertices().end(); ++it_2) {
+        int dest_index = red.findIndex(*it);
+
+        if ((*it_2) != instanciaClase && !red.getEdges()[origin_index][dest_index].empty() && red.getEdges()[origin_index][dest_index] == atributo) {
+            std::cout << "El atributo " << atributo << " de " << instanciaClase << " es: " << *it_2 << std::endl;
+            return;
+        }
+    }
+
+    
 
 
 }

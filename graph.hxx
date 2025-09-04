@@ -126,7 +126,7 @@ bool graph<T>::insertEdge(T origin, T destination) {
 }
 
 template <class T>
-bool graph<T>::insertEdge(T origin, T destination, float cost) {
+bool graph<T>::insertEdge(T origin, std::string cost, T destination) {
   int indexOrigin = findIndex(origin);
   int indexDestination = findIndex(destination);
   if (indexOrigin == -1 || indexDestination == -1) return false;

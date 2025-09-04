@@ -22,7 +22,7 @@ public:
   int findIndex(T vertex);
   bool insertVertex(T vertex);
   bool insertEdge(T origin, T destination);
-  bool insertEdge(T origin, T destination, float cost);
+  bool insertEdge(T origin, std::string cost, T destination);
   bool findVertex(T vertex);
   T findVertex(int index);
   bool findEdge(T origin, T destination);

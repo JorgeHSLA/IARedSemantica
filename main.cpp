@@ -4,285 +4,131 @@
 #include <climits>
 #include <stack>
 #include <vector>
-#include <queue>
 #include <unordered_set>
 #include <unordered_map>
+#include <regex>
+#include <cctype>
+#include <string>
+#include <algorithm>
+#include <fstream>
+#include <sstream>
 #include "graph.h"
-#include "aux.h"
+
+std::vector<std::string> split(const std::string& str, char delimiter) {
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(str);
+    while (std::getline(tokenStream, token, delimiter)) {
+        tokens.push_back(trim(token));
+    }
+    return tokens;
+}
 
 /*
     Chat recomienda la creación y uso de estructuras 
     auxiliares para la implementación del algoritmo Best-First
     Y le pedí que las creara xd
 */
+              
+enum class FunctionType { ES, INSTANCE, ATRIBUTTE };
 
-struct Alt {
-    Jarra state;               
-    int g;                     
-    std::size_t visited_size;  
-};
+static inline std::string trim(std::string s) {
+    size_t i = 0, j = s.size();
+    while (i < j && std::isspace(static_cast<unsigned char>(s[i]))) ++i;
+    while (j > i && std::isspace(static_cast<unsigned char>(s[j-1]))) --j;
+    return s.substr(i, j - i);
+}
 
-struct JarraHash {
-    std::size_t operator()(const Jarra& s) const noexcept {
-        std::size_t h1 = std::hash<int>{}(std::get<0>(s));
-        std::size_t h2 = std::hash<int>{}(std::get<1>(s));
-        return h1 ^ (h2 + 0x9e3779b9u + (h1 << 6) + (h1 >> 2));
+std::vector<std::string> splitArgsRespectingNesting(const std::string& args) {
+    std::vector<std::string> out;
+    std::string cur;
+    int paren = 0; // ()
+    int angle = 0; // <>
+    bool inStr = false;
+    char q = 0;
+
+    for (size_t i = 0; i < args.size(); ++i) {
+        char c = args[i];
+
+        if (inStr) {
+            cur.push_back(c);
+            if (c == q && (i == 0 || args[i-1] != '\\')) inStr = false;
+            continue;
+        } else if (c == '"' || c == '\'') {
+            inStr = true; q = c; cur.push_back(c);
+            continue;
+        }
+
+        if (c == '(') ++paren;
+        else if (c == ')' && paren > 0) --paren;
+        else if (c == '<') ++angle;
+        else if (c == '>' && angle > 0) --angle;
+
+        if (c == ',' && paren == 0 && angle == 0) {
+            out.push_back(trim(cur));
+            cur.clear();
+        } else {
+            cur.push_back(c);
+        }
     }
-};
+    if (!trim(cur).empty()) out.push_back(trim(cur));
+    if (out.size() == 1 && out[0].empty()) out.clear();
+    return out;
+}
 
-struct Node {
-    Jarra state;
-    int g; 
-    int f; 
-};
+std::vector<std::string> parseSignature(const std::string& s) {
+    static const std::regex re(R"(^\s*([A-Za-z_]\w*)\s*\(\s*(.*?)\s*\)\s*$)");
+    std::smatch m;
+    if (!std::regex_match(s, m, re)) return {}; 
 
-struct NodeCmp {
-    bool operator()(const Node& a, const Node& b) const {
-        return a.f > b.f; 
-    }
-};
+    std::string name = m[1].str();
+    std::string args = m[2].str();
+
+    std::vector<std::string> result;
+    result.push_back(name);
+
+    auto parts = splitArgsRespectingNesting(args);
+    result.insert(result.end(), parts.begin(), parts.end());
+    return result;
+}
 
 int main () {
 
+    std::cout << "Escriba el nombre del archivo (con .txt): ";
+    std::string filename;
+    std::getline(std::cin, filename);
+    std::string linea;
+    std::vector<std::string> entrada;
+    std::vector<std::vector<std::string>> funciones;
 
-    // Versión 1: Heurística + backtracking 
-    // La propuesta heurística se realiza con la implementación de las funciones
-    // creadas en aux.h
-    // Chat ayuda con cómo plantear el backtracking del algoritmo 
-    // que nos permite recorrer rutas alternativas cuando el problema se estanca
-    // Chat también ayuda con el debugging y unas cosas de sintaxis redundantes
-    {
-        graph<Jarra> problem_graph;
-        Jarra current = std::make_tuple(LOWERLIMIT, LOWERLIMIT);
-        Jarra heuristic_solution = current;
+    graph<std::string> red;
+    std::ifstream archivo(filename);
 
-        int current_cost = 0;   
-        bool heuristic = true;
+    if (!archivo.is_open()) {
+        std::cerr << "No se pudo abrir el archivo: " << filename << std::endl;
+        return 1;
+    }
+    
+    while (getline(archivo, linea)) {
+        if (linea.empty()) continue;
 
-        std::chrono::high_resolution_clock::time_point t1;
-        std::chrono::high_resolution_clock::time_point t2;
-        std::chrono::microseconds duration;
-
-        t1 = std::chrono::high_resolution_clock::now();
-
-        std::stack<Alt> alternatives;   
-        std::list<Jarra> visited;       
-
-        while (heuristic) {
-
-            if (aux::isGoal(current)) {
-                heuristic_solution = current;
-                break;
-            }
-
-            visited.push_back(current);
-            current_cost++;
-
-            problem_graph.insertVertex(current);
-
-            std::list<Jarra> current_succesors = aux::succesors(current);
-
-            // Filtrar válidos y no visitados
-            std::list<Jarra> valid_succesors;
-            std::list<Jarra>::iterator it;
-            for (it = current_succesors.begin(); it != current_succesors.end(); ++it) {
-                if (!aux::isValid(*it)) continue;
-
-                bool seen = false;
-                std::list<Jarra>::const_iterator vit;
-                for (vit = visited.begin(); vit != visited.end(); ++vit) {
-                    if (*vit == *it) { 
-                        seen = true; 
-                        break; }
-                }
-                if (!seen) valid_succesors.push_back(*it);
-            }
-            current_succesors.swap(valid_succesors);
-
-            if (current_succesors.empty()) {
-                if (!alternatives.empty()) {
-                    Alt alt = alternatives.top();
-                    alternatives.pop();
-                    while (visited.size() > alt.visited_size) {
-                        visited.pop_back();
-                    }
-                    current_cost = alt.g;   
-                    current = alt.state;   
-                    continue;
-                } else {
-                    std::cerr << "No hay sucesores ni alternativas; fin (heurística).\n";
-                    break;
-                }
-            }
-
-            // Hallar la función para cada sucesor en una nueva lista
-            int best_cost = INT_MAX;
-            std::list<Jarra>::iterator best_it = current_succesors.end();
-
-            std::vector< std::pair<int, Jarra> > all;
-            for (it = current_succesors.begin(); it != current_succesors.end(); ++it) {
-                problem_graph.insertEdge(current, *it);
-
-                int f_val = current_cost + aux::heuristic(*it);
-                all.push_back(std::make_pair(f_val, *it));
-
-                if (f_val < best_cost) {
-                    best_cost = f_val;
-                    best_it   = it;
-                }
-            }
-
-            if (best_it == current_succesors.end()) {
-                if (!alternatives.empty()) {
-                    Alt alt = alternatives.top();
-                    alternatives.pop();
-
-                    while (visited.size() > alt.visited_size) {
-                        visited.pop_back();
-                    }
-                    current_cost = alt.g;
-                    current = alt.state;
-                } else {
-                    std::cerr << "No se halló mejor sucesor; fin (heurística).\n";
-                }
-                continue;
-            }
-
-            std::size_t ctx_size = visited.size();     
-            int next_g = current_cost + 1;             
-            std::size_t i;
-            for (i = 0; i < all.size(); ++i) {
-                if (all[i].second == *best_it) 
-                    continue;  
-                Alt alt;
-                alt.state = all[i].second;
-                alt.g = next_g;
-                alt.visited_size = ctx_size;
-                alternatives.push(alt);
-            }
-
-            current = *best_it;
+        size_t pos = linea.find("(");
+        if (pos == std::string::npos) {
+            std::cerr << "Línea inválida (no contiene '('): " << linea << std::endl;
+            continue;
         }
+        std::string nombreFuncion = linea.substr(0, pos);
+        std::string argumento = linea.substr(pos + 1, linea.size() - pos - 2); 
+        std::vector<std::string>  argumentos = split(argumento, ',');
 
-        t2 = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1);
-
-        std::cout << "[Heurística + Backtracking]\n";
-        std::cout << "Tupla de solución: "   << aux::to_string(heuristic_solution) << "\n";
-        std::cout << "Cantidad de pasos (g): "   << current_cost << "\n";
-        std::cout << "Tiempo de ejecución: " << duration.count() << " us\n\n";
     }
 
-    // Versión 2: Best-First (frontera/priority_queue) con gscore (estilo A*)
-    // Como se menciona en la declaración de las estructuras, gepeto ayuda con los nodos y la definición 
-    // de la frontera (NodeCmp), que nos permite usar el best-first con una cola de prioridad
-    // Como se menciona en el Aux.cpp, es posible usar el unordered_set con las jarras
-    // por el JarraHash escrito por gepeto en ese archivo.
-    // Ayudó a corregir la lógica del algoritmo y debugging. (Porque apuntadores y referencias
-    // aún dan duro a veces jajaja)
-    {
-        graph<Jarra> problem_graph2;
-        Jarra start = std::make_tuple(LOWERLIMIT, LOWERLIMIT);
+    //1. Leer er archivo de txt por línea y guardarlo en un arreglo dinámico (lista)
+    //2. Dividir cada valor de la lista en una sublista, donde se guarda a través de un expresión regular
+    // el tipo de función y sus atributos
 
-        std::chrono::high_resolution_clock::time_point t1b;
-        std::chrono::high_resolution_clock::time_point t2b;
-        std::chrono::microseconds duration_bf;
+    
 
-        t1b = std::chrono::high_resolution_clock::now();
 
-        std::priority_queue<Node, std::vector<Node>, NodeCmp> open;
-        
-        std::unordered_set<Jarra, JarraHash> closed;
-        std::unordered_map<Jarra, int, JarraHash> gscore;          
-        std::unordered_map<Jarra, Jarra, JarraHash> parent;        
-
-        int h0 = aux::heuristic(start);
-        open.push(Node{ start, 0, h0 });
-        gscore[start] = 0;
-
-        bool found = false;
-        Jarra goal = start;
-        int goal_g = 0;
-
-        while (!open.empty()) {
-            Node cur = open.top(); 
-            open.pop();
-
-            Jarra u = cur.state;
-
-            std::unordered_map<Jarra, int, JarraHash>::iterator git_u = gscore.find(u);
-            if (git_u != gscore.end() && cur.g > git_u -> second) {
-                continue;
-            }
-
-            if (aux::isGoal(u)) {
-                found  = true;
-                goal   = u;
-                goal_g = cur.g;
-                break;
-            }
-
-            closed.insert(u);
-
-            problem_graph2.insertVertex(u);
-            std::list<Jarra> succ = aux::succesors(u);
-
-            std::list<Jarra>::iterator it;
-            for (it = succ.begin(); it != succ.end(); ++it) {
-                const Jarra& v = *it;
-
-                if (!aux::isValid(v)) continue;
-
-                int g2 = cur.g + 1;
-
-                if (closed.find(v) != closed.end()) {
-                    std::unordered_map<Jarra, int, JarraHash>::iterator git_vc = gscore.find(v);
-                    if (git_vc != gscore.end() && g2 >= git_vc->second) continue;
-                }
-
-                std::unordered_map<Jarra, int, JarraHash>::iterator git_v = gscore.find(v);
-                if (git_v == gscore.end() || g2 < git_v->second) {
-                    gscore[v] = g2;
-                    
-                    int f2 = g2 + aux::heuristic(v);
-                    open.push(Node{ v, g2, f2 });
-
-                    problem_graph2.insertVertex(v);
-                    problem_graph2.insertEdge(u, v);
-
-                    parent[v] = u;
-                }
-            }
-        }
-
-        t2b = std::chrono::high_resolution_clock::now();
-        duration_bf = std::chrono::duration_cast<std::chrono::microseconds>(t2b - t1b);
-
-        std::cout << "[Best-First]\n";
-        if (found) {
-            std::cout << "Tupla de solución: " << aux::to_string(goal) << "\n";
-            std::cout << "Cantidad de pasos (g): " << goal_g << "\n";
-
-            std::list<Jarra> path;
-            Jarra cur = goal;
-            path.push_front(cur);
-            while (!(cur == start)) {
-                std::unordered_map<Jarra, Jarra, JarraHash>::iterator pit = parent.find(cur);
-                if (pit == parent.end()) break;
-                cur = pit->second;
-                path.push_front(cur);
-            }
-            std::cout << "Camino:\n";
-            std::list<Jarra>::iterator itp;
-            for (itp = path.begin(); itp != path.end(); ++itp) {
-                std::cout << "  " << aux::to_string(*itp) << "\n";
-            }
-        } else {
-            std::cout << "No se encontró solución.\n";
-            std::cout << "Cantidad de pasos (g): 0\n";
-        }
-        std::cout << "Tiempo de ejecución: " << duration_bf.count() << " us\n";
-    }
-
-    return 0;
+   return 0;
 }

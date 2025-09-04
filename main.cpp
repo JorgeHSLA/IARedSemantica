@@ -97,15 +97,51 @@ int main () {
         }
     }
 
-    // red.printElements();
-    // red.printGraph();
 
-    //1. Leer er archivo de txt por línea y guardarlo en un arreglo dinámico (lista)
-    //2. Dividir cada valor de la lista en una sublista, donde se guarda a través de un expresión regular
-    // el tipo de función y sus atributos
-
+  int opcion=0;
+    std::cout<<"elije una de las opcions";
+    std::cout<<"1.Preguntar por el valor de un atributo de una clase o instancia particular: atributo X de Y? \n";
+    std::cout<<"2.Preguntar por todas las clases o instancias que tienen un atributo con un valor particular: clases o instancias con atributo X y valor Z? \n";
+    std::cin>>opcion;
+    if (opcion == 1)
+        preguntaUno()
+    else if(opcion == 2)
+        preguntaDos()
+    else
+        std::cout<<"pon un numero que sea el uno o el dos\n";
+    
     
 
 
    return 0;
+}
+
+
+void preguntaUno(){
+
+    std::String atributo = "X"
+    std::String instanciaClase = "Y"
+    std::cout<<"INGRESA EL ATRIBUTO (X) \n";
+    std::cin>>atributo;
+    std::cout<<"INGRESA LA CLASE O INSTANCIA (Y) \n";
+    std::cin>>instanciaClase;
+
+
+} 
+
+void preguntaDos(){
+
+    std::String atributo = "X"
+    std::String instanciaClase = "Y"
+    std::cout<<"INGRESA EL ATRIBUTO (X) \n";
+    std::cin>>atributo;
+    std::cout<<"INGRESA VALOR DE LA VARIABLE (Z) \n";
+    std::cin>>instanciaClase;
+
+}
+
+bool atributoEnClaseOInstancia(String x, String y){
+    find
+
+
 }
